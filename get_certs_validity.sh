@@ -1,6 +1,6 @@
 #!/bin/bash
 
-: "${C_IMAGE:=cert_monitor}"
+: "${C_IMAGE:=cycomf/cert_monitor}"
 
 : "${WD:=$( cd "$( dirname "$0" )" && pwd )}"
 
