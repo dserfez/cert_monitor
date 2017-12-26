@@ -1,6 +1,0 @@
-https://api.infobip.com
-https://zap.grisia.com
-https://dev.infobip.com
-https://www.yahoo.com
-https://google.com
-%x[pwd]
