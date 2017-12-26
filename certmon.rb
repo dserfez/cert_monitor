@@ -1,9 +1,11 @@
 require 'httpclient'
 require 'json'
+require 'pry'
 
 urllist = ARGV[0]
 days = ARGV[1]
 
+$VERBOSE = nil
 
 if urllist.nil? or days.nil?
     puts "This tool requires 2 parameters: <url_list_file> <days>"
@@ -13,8 +15,13 @@ end
 
 def certificate_get(url)
     c = HTTPClient.new
-    r = c.get( url )
-    return r.peer_cert
+    begin
+        r = c.get( url )
+    rescue OpenSSL::SSL::SSLError => e
+        c.ssl_config.verify_mode=OpenSSL::SSL::VERIFY_NONE
+        r = c.get( url )
+    end
+    return r.peer_cert, e
 end
 
 def valid_for_days?(cert)
@@ -29,10 +36,15 @@ out = []
 File.readlines(urllist).each do |url|
     if url.start_with?("https://")
         url.chomp!
-        cert = certificate_get(url)
+        cert, error = certificate_get(url)
+        #binding.pry
         vd = valid_for_days?(cert)
         if vd.to_i <= days.to_i
-            out << {url: url, subject: cert.subject, valid_days: vd, last_check: Time.now.iso8601}
+            if error.nil?
+                out << {url: url, subject: cert.subject, valid_days: vd, last_check: Time.now.iso8601}
+            else
+                out << {url: url, subject: cert.subject, valid_days: vd, last_check: Time.now.iso8601, error: "#{error.message}"}
+            end
             #puts {url: url, subject: cert.subject, valid_days: vd}.to_json
         end
     end

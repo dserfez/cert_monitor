@@ -59,11 +59,11 @@ fi
 
 
 
-echo "DAYS: ${DAYS}, URLFILE: ${URLFILE}"
+#echo "DAYS: ${DAYS}, URLFILE: ${URLFILE}"
 
 
-REZ=$(docker run --rm -ti \
+REZ=$(docker run --rm -i \
     -v "${URLFILE}":/tmp/urllist.txt:ro \
     ${C_IMAGE} /tmp/urllist.txt ${DAYS})
 
-strings ${REZ}
+echo ${REZ} | strings 
