@@ -18,8 +18,6 @@ def certificate_get(url)
 end
 
 def valid_for_days?(cert)
-    #cert = certificate_get(url)
-    #return ((a.not_after - Time.now) / (3600*24)).round
     return ((cert.not_after - Time.now) / (3600*24)).to_i
 end
 
