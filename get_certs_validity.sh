@@ -1,5 +1,7 @@
 #!/bin/bash
 
+if [ "$(docker images -q cert_monitor:latest)" ] && [ -z $C_IMAGE ]; then C_IMAGE=cert_monitor ; fi
+
 : "${C_IMAGE:=cycomf/cert_monitor}"
 
 : "${WD:=$( cd "$( dirname "$0" )" && pwd )}"
