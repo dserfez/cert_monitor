@@ -50,7 +50,8 @@ module CertMon
         def export
             r = {
                 url: @url,
-                subject: @certificate.subject,
+                subject: @certificate.subject.to_s,
+                valid_until: @certificate.not_after.iso8601,
                 valid_days: @valid_days,
                 last_check: @last_check
             }
