@@ -12,46 +12,61 @@ if urllist.nil? or days.nil?
     raise
 end
 
+module CertMon
+    class Cert
+        attr_accessor :url, :certificate, :error, :last_check
 
-def certificate_get(url)
-    c = HTTPClient.new
-    begin
-        r = c.get( url )
-    rescue OpenSSL::SSL::SSLError => e
-        c.ssl_config.verify_mode=OpenSSL::SSL::VERIFY_NONE
-        r = c.get( url )
-    end
-    return r.peer_cert, e
-end
-
-def valid_for_days?(cert)
-    return ((cert.not_after - Time.now) / (3600*24)).to_i
-end
-
-
-#outlist = "#{urllist}.out"
-
-out = []
-
-File.readlines(urllist).each do |url|
-    if url.start_with?("https://")
-        url.chomp!
-        cert, error = certificate_get(url)
-        #binding.pry
-        vd = valid_for_days?(cert)
-        if vd.to_i <= days.to_i
-            if error.nil?
-                out << {url: url, subject: cert.subject, valid_days: vd, last_check: Time.now.iso8601}
-            else
-                out << {url: url, subject: cert.subject, valid_days: vd, last_check: Time.now.iso8601, error: "#{error.message}"}
+        def certificate_get
+            client = HTTPClient.new
+            begin
+                r = client.get( self.url )
+            rescue OpenSSL::SSL::SSLError => e
+                client.ssl_config.verify_mode=OpenSSL::SSL::VERIFY_NONE
+                r = client.get( self.url )
+                self.error = e
             end
-            #puts {url: url, subject: cert.subject, valid_days: vd}.to_json
+            self.certificate = r.peer_cert
+            self.last_check = Time.now.iso8601
+        end
+
+        def valid_for_days?
+            return ((self.certificate.not_after - Time.now) / (3600*24)).to_i
+        end
+
+        def is_https?
+            if self.url.start_with?("https://")
+                self.url.chomp!
+            else
+                return false
+            end
+        end
+    
+        def export
+            r = {
+                url: self.url,
+                subject: self.certificate.subject,
+                valid_days: self.valid_for_days?,
+                last_check: self.last_check
+            }
+            r[:error] = self.error.message if self.error
+            return r
         end
     end
 end
 
-#outf = File.open(outlist, "w")
-#outf.write(out.to_json)
-#outf.close
+
+out = []
+
+File.readlines(urllist).each do |url|
+    c = CertMon::Cert.new
+    c.url = url
+    if c.is_https?
+        cert = c.certificate_get
+        vd = c.valid_for_days?
+        if vd.to_i <= days.to_i
+            out << c.export
+        end
+    end
+end
 
 puts out.to_json
