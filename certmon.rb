@@ -1,11 +1,16 @@
 require 'httpclient'
 require 'json'
 require 'pry'
+require 'concurrent'
 
 urllist = ARGV[0]
 days = ARGV[1]
 
-$VERBOSE = nil
+DEBUG = 0
+
+CONCURRENT = 10
+
+$VERBOSE = nil # This fixes HTTPClient unknown response headers being printed to output and invalidating JSON 
 
 if urllist.nil? or days.nil?
     puts "This tool requires 2 parameters: <url_list_file> <days>"
@@ -14,28 +19,29 @@ end
 
 module CertMon
     class Cert
-        attr_accessor :url, :certificate, :error, :last_check
+        attr_accessor :url, :certificate, :error, :valid_days, :last_check
+
+        def valid_for_days?
+            return ((@certificate.not_after - Time.now) / (3600*24)).to_i
+        end
 
         def certificate_get
             client = HTTPClient.new
             begin
-                r = client.get( self.url )
+                r = client.get( @url )
             rescue OpenSSL::SSL::SSLError => e
                 client.ssl_config.verify_mode=OpenSSL::SSL::VERIFY_NONE
-                r = client.get( self.url )
-                self.error = e
+                r = client.get( @url )
+                @error = e
             end
-            self.certificate = r.peer_cert
-            self.last_check = Time.now.iso8601
-        end
-
-        def valid_for_days?
-            return ((self.certificate.not_after - Time.now) / (3600*24)).to_i
+            @certificate = r.peer_cert
+            @valid_days = valid_for_days?
+            @last_check = Time.now.iso8601
         end
 
         def is_https?
-            if self.url.start_with?("https://")
-                self.url.chomp!
+            if @url.start_with?("https://")
+                return true
             else
                 return false
             end
@@ -43,30 +49,86 @@ module CertMon
     
         def export
             r = {
-                url: self.url,
-                subject: self.certificate.subject,
-                valid_days: self.valid_for_days?,
-                last_check: self.last_check
+                url: @url,
+                subject: @certificate.subject,
+                valid_days: @valid_days,
+                last_check: @last_check
             }
-            r[:error] = self.error.message if self.error
+            r['error'] = @error.message if @error
             return r
         end
-    end
-end
 
+    end
+
+end
 
 out = []
+ps = []
 
-File.readlines(urllist).each do |url|
-    c = CertMon::Cert.new
-    c.url = url
-    if c.is_https?
-        cert = c.certificate_get
-        vd = c.valid_for_days?
-        if vd.to_i <= days.to_i
-            out << c.export
+entries = File.readlines(urllist)
+
+until entries.empty? and ps.empty?
+  
+  if ps.count < CONCURRENT
+    unless entries.empty?
+      url = entries.shift.chomp
+      STDERR.puts "URL: #{url}" unless DEBUG == 0
+      ps << Concurrent::Promise.execute{ 
+        c = CertMon::Cert.new
+        c.url = url
+        if c.is_https?
+            STDERR.puts "GETTING CERT FOR: #{url}" unless DEBUG == 0
+            cert = c.certificate_get
+            if c.valid_days.to_i <= days.to_i
+                out << c.export
+            end
         end
+        STDERR.puts "DONE: #{c.url}" unless DEBUG == 0
+      }
     end
+
+    ps.each {
+      |p|
+      ps = ps - [p] if p.complete?
+      #p "#{url} #{p.state}"
+      #p "#{url} #{p.state} #{p.reason}" if p.rejected?
+      ##if p.fulfilled?
+        ##ps = ps - [p]
+        #out << p.value
+      ##elsif p.rejected?
+        ##ps = ps - [p]
+        #out << p.reason
+      ##end
+
+    }
+  end
+
+sleep 0.01
 end
 
+#        c = CertMon::Cert.new
+#        c.url = url
+#        if c.is_https?
+#            cert = c.certificate_get
+#            if c.valid_days.to_i <= days.to_i
+#                out << c.export
+#            end
+#        end
+    
+
+
 puts out.to_json
+
+#File.readlines(urllist).each do |url|
+#    c = CertMon::Cert.new
+#    c.url = url
+#    if c.is_https?
+#        cert = c.certificate_get
+#        vd = c.valid_for_days?
+#        if vd.to_i <= days.to_i
+#            out << c.export
+#        end
+#    end
+#end
+
+#puts c.out.to_json

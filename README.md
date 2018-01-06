@@ -5,8 +5,9 @@ Packed in a relatively small (23MB) Docker container, tool that will take a give
 * subject - subject extracted from the certificate
 * valid_days - for how many days the certificate is still valid
 * last_check - the time of checking, in ISO8601 format
-* error - pressent only if there are errors (mainly certificate validation fails) 
+* error - pressent only if there are errors (mainly certificate validation fails)
 
+It does 10 concurrent connections to speed things up a little.
 
 ## Prerequisites
 * Docker running on host
@@ -19,6 +20,7 @@ The script `get_certs_validity.sh` is an example wrapper for using this tool.
 * Execute run script (be careful with what you allow to execute!)
     * with parameters inline: `./get_certs_validity.sh -d 45 -u myurls.txt`
     * with parameters given through ENV `DAYS=45 URLFILE=myurls.txt ./get_certs_validity.sh`
+        * **NOTE**: user inside the container is `uid=405(guest) gid=100(users)`, and URL file must be readable by it
 
 ## Build
 Don't blindly trust images from the internet, build your own using the provided Dockerfile.
@@ -40,3 +42,6 @@ docker run --rm -i \
 
 # TODO
 This is a small weekend project/experiment, and there is alot that can be done to improve it. Feel free to contribute with ideas, or better with code.
+
+* Concurrency as parameter
+

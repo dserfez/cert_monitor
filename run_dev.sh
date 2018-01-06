@@ -16,7 +16,7 @@ docker run --rm -ti \
     -v $(pwd)/urllist.txt:/tmp/urls/urllist.txt \
     -v $(pwd)/certmon.rb:/opt/certificate_monitor.rb:ro \
     --entrypoint=/bin/sh \
-    cycomf/cert_monitor
+    cert_monitor
 
 exit 0
     --user=nobody \
