@@ -27,6 +27,9 @@ module CertMon
 
         def certificate_get
             client = HTTPClient.new
+            client.connect_timeout = 5
+            client.send_timeout = 5
+            client.receive_timeout = 5
             begin
                 r = client.get( @url )
             rescue OpenSSL::SSL::SSLError => e
@@ -77,13 +80,15 @@ until entries.empty? and ps.empty?
       ps << Concurrent::Promise.execute{ 
         c = CertMon::Cert.new
         c.url = url
-        if c.is_https?
-            STDERR.puts "GETTING CERT FOR: #{url}" unless DEBUG == 0
-            cert = c.certificate_get
-            if c.valid_days.to_i <= days.to_i
-                out << c.export
-            end
+        unless c.is_https?
+          c.url = "https://#{url}"
         end
+        STDERR.puts "GETTING CERT FOR: #{url}" unless DEBUG == 0
+        cert = c.certificate_get
+        if c.valid_days.to_i <= days.to_i
+            out << c.export
+        end
+        
         STDERR.puts "DONE: #{c.url}" unless DEBUG == 0
       }
     end
@@ -91,45 +96,14 @@ until entries.empty? and ps.empty?
     ps.each {
       |p|
       ps = ps - [p] if p.complete?
-      #p "#{url} #{p.state}"
-      #p "#{url} #{p.state} #{p.reason}" if p.rejected?
-      ##if p.fulfilled?
-        ##ps = ps - [p]
-        #out << p.value
-      ##elsif p.rejected?
-        ##ps = ps - [p]
-        #out << p.reason
-      ##end
-
     }
   end
 
-sleep 0.01
+#sleep 0.01
+sleep 0.3
 end
 
-#        c = CertMon::Cert.new
-#        c.url = url
-#        if c.is_https?
-#            cert = c.certificate_get
-#            if c.valid_days.to_i <= days.to_i
-#                out << c.export
-#            end
-#        end
-    
 
 
 puts out.to_json
 
-#File.readlines(urllist).each do |url|
-#    c = CertMon::Cert.new
-#    c.url = url
-#    if c.is_https?
-#        cert = c.certificate_get
-#        vd = c.valid_for_days?
-#        if vd.to_i <= days.to_i
-#            out << c.export
-#        end
-#    end
-#end
-
-#puts c.out.to_json
