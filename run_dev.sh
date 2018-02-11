@@ -1,6 +1,7 @@
 #!/bin/bash
 
 : "${DAYS:=45}"
+: "${URLFILE:=urllist.txt}"
 
 write_urlfile() {
     echo "https://api.infobip.com" > urllist.txt
@@ -10,10 +11,10 @@ write_urlfile() {
     echo "https://google.com" >> urllist.txt
 }
 
-write_urlfile
+#write_urlfile
 
 docker run --rm -ti \
-    -v $(pwd)/urllist.txt:/tmp/urls/urllist.txt \
+    -v $(pwd)/"${URLFILE}":/tmp/urls/urllist.txt \
     -v $(pwd)/certmon.rb:/opt/certificate_monitor.rb:ro \
     --entrypoint=/bin/sh \
     cert_monitor
