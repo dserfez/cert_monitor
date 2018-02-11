@@ -44,6 +44,3 @@ docker run --rm -i \
 
 # TODO
 This is a small weekend project/experiment, and there is alot that can be done to improve it. Feel free to contribute with ideas, or better with code.
-
-* Concurrency as parameter
-
